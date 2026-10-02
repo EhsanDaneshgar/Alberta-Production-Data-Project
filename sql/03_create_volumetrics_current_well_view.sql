@@ -1,14 +1,13 @@
-USE [AlbertaProductionDB]
+USE AlbertaProductionDB;
 GO
 
-/****** Object:  View [dbo].[vw_Volumetrics_With_Current_Well_ID]    Script Date: 2026-09-28 10:26:14 PM ******/
-SET ANSI_NULLS ON
+SET ANSI_NULLS ON;
 GO
 
-SET QUOTED_IDENTIFIER ON
+SET QUOTED_IDENTIFIER ON;
 GO
 
-CREATE   VIEW [dbo].[vw_Volumetrics_With_Current_Well_ID]
+CREATE OR ALTER VIEW dbo.vw_Volumetrics_With_Current_Well_ID
 AS
 
 WITH Current_Wells AS
@@ -16,6 +15,7 @@ WITH Current_Wells AS
     SELECT DISTINCT Well_ID
     FROM dbo.Source_Well_Infrastructure
 ),
+
 Unique_Previous_Wells AS
 (
     SELECT
@@ -39,10 +39,19 @@ SELECT
     CASE
         WHEN v.From_To_ID_Type <> 'WI'
             THEN 'Not a Well'
+
         WHEN c.Well_ID IS NOT NULL
             THEN 'Current Well ID'
+
         WHEN p.Current_Well_ID IS NOT NULL
             THEN 'Unique Previous Well ID'
+
+        WHEN
+            NULLIF(NULLIF(TRIM(v.From_To_ID), ''), '***') IS NULL
+            AND
+            NULLIF(NULLIF(TRIM(v.From_To_ID_Identifier), ''), '***') IS NULL
+            THEN 'Missing Well ID'
+
         ELSE 'Unmatched'
     END AS Well_ID_Match_Method
 
