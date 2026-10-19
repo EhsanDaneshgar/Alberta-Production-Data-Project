@@ -176,6 +176,7 @@ Read more:
 - [ST103 geological pool mapping findings](docs/st103-geological-pool-mapping.md)
 - [Create ST103 reference table](sql/11_create_ref_fieldpool_st103.sql)
 - [ST103 validation SQL](sql/12_validate_st103_geological_pool_mapping.sql)
+- [AER General Well Data sample investigation and MD/TVD findings](docs/aer-general-well-data-sample-investigation.md)
 
 ## Important Data Findings
 
