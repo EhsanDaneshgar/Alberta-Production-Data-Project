@@ -33,6 +33,7 @@ The raw CSV files are not stored in this repository because of their size. This 
 * Microsoft SQL Server
 * SQL Server Management Studio
 * T-SQL
+* Python (AER sample parsing and candidate formation matching)
 * Power BI
 * GitHub
 
@@ -177,6 +178,8 @@ Read more:
 - [Create ST103 reference table](sql/11_create_ref_fieldpool_st103.sql)
 - [ST103 validation SQL](sql/12_validate_st103_geological_pool_mapping.sql)
 - [AER General Well Data sample investigation and MD/TVD findings](docs/aer-general-well-data-sample-investigation.md)
+- [AER Python formation-matching validation](docs/aer-formation-matching-python-validation.md)
+- [Python matching script](python/aer_match_formations.py)
 
 ## Important Data Findings
 
@@ -220,14 +223,18 @@ The completed model should support questions such as:
 
 ## Repository Structure
 
-The repository currently contains a flat, numbered set of SQL scripts and project documentation:
+The repository includes SQL scripts, technical findings, and a reproducible Python sample-matching prototype:
 
 ```text
 Alberta-Production-Data-Project/
 ├── README.md
 ├── docs/
 │   ├── monthly-volumetrics-load-log.md
-│   └── st103-geological-pool-mapping.md
+│   ├── st103-geological-pool-mapping.md
+│   ├── aer-general-well-data-sample-investigation.md
+│   └── aer-formation-matching-python-validation.md
+├── python/
+│   └── aer_match_formations.py
 └── sql/
     ├── README.md
     ├── 01_create_clean_volumetrics_table.sql
@@ -236,7 +243,7 @@ Alberta-Production-Data-Project/
     └── 12_validate_st103_geological_pool_mapping.sql
 ```
 
-The source CSV/XLSX datasets are not stored in this repository. SQL files document the schema and analysis logic; the live database and its data remain in SQL Server.
+The source AER/Petrinex files and derived sample CSV outputs are not stored in the repository. The Python prototype runs locally using AER sample-derived CSV inputs and does not alter the live SQL Server database. Its depth matching is preliminary: it does not verify the common depth datum or 2026 producing formations.
 
 ## Author
 
