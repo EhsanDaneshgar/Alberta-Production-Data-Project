@@ -128,7 +128,12 @@ A perforated interval can intersect more than one formation; a treated interval 
 
 **Not completed:** formal perforation/formation datum confirmation; wellbore trajectory integration; time-specific producing-zone validation; integration with `AlbertaProductionDB`; sample-to-Petrinex match coverage; purchase/import of all-Alberta AER General Well Data.
 
-**Next action:** resolve the depth datum explicitly, then develop a tested *candidate formation* matching procedure with well-event, depth reference, historical status, and source provenance preserved.
+**Follow-up (Phase 2 completed in October 2026):** A reproducible Python prototype now screens measured-depth geological marker intervals against perforation/treatment and initial-completion intervals, with separate potential plug-impact flags. The sample run produced 189 interval output rows (185 candidate formation overlaps plus 4 unmatched placeholders), 241 potential plug relationships, 7 well-event summaries, and 4 unmatched interval records. These are candidate results only; the common depth datum and 2026 producing-zone status remain unverified.
+
+- [Phase 2 Python script](../python/aer_match_formations.py)
+- [Phase 2 validation report and limitations](aer-formation-matching-python-validation.md)
+
+**Next action:** verify the exact depth-reference datums, then refine time-aware completion and plugging interpretation before attempting any production linkage.
 
 ---
 
