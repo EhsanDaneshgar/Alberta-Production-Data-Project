@@ -316,11 +316,33 @@ An initial Python workflow was developed to parse AER General Well Data sample r
 - [AER General Well Data sample investigation](docs/aer-general-well-data-sample-investigation.md)
 - [Python formation-matching validation](docs/aer-formation-matching-python-validation.md)
 
-The current approach is preliminary.
+## AER Tableau Pilot: Reservoir and Formation Identification
 
-It does not independently establish confirmed producing formations, and the depth datum and MD/TVD compatibility require careful validation.
+In October 2026 a pilot extracted well-level data from the free AER General Well Data Tableau reports and matched it to ST103 candidate Geological Pools.
 
-A future priority is to determine whether AER General Well Data can be obtained through an authorized programmatic or bulk-data method instead of manually downloading individual well reports.
+The per-well report sheets (production strings, completion intervals, perforations/treatments, geological tops, licence details, status history, plugbacks) are downloaded as CSV using Tableau's standard `.csv` view export. The reports are keyed by the wellbore UWI (event `/0`).
+
+**Method:** use the current production string's completion interval, find the formation tops it falls in (producing formation), then match those formations to ST103 candidate pool names (Geological Pool).
+
+**Pilot results (10 conventional wells):**
+
+- Producing formation identified for 10 of 10 wells.
+- Geological Pool narrowed to a specific pool for 8 of 10 wells (HERRONTON / MFP9501: 44 candidates → 1).
+- 2 wells remain formation-only, because their candidate pools are in the same formation and are separated by map area, not depth.
+- Licence purpose text was misleading for one well, so it is treated as weak evidence.
+
+Results are evidence-based estimates with a confidence level (STRONG, PROBABLE, FORMATION_ONLY, UNRESOLVED), not AER-confirmed assignments. Depth reference compatibility (MD/TVD) is not yet verified.
+
+**Scripts and files:**
+
+- [aer_well_extract_v2.py](python/aer_well_extract_v2.py): download AER report sheets for a list of wells
+- [aer_reservoir_formation_match_v1.py](python/aer_reservoir_formation_match_v1.py): estimate producing formation(s) and Geological Pool(s)
+- [formation_to_pool_keywords_v1.csv](reference/formation_to_pool_keywords_v1.csv): draft formation-to-pool-name lookup
+- [Pilot well selection SQL](sql/16_select_pilot_wells_and_st103_candidates.sql)
+- [Pilot documentation](docs/aer-tableau-pilot-reservoir-formation-identification.md)
+- [Pilot results CSV](docs/pilot-reservoir-formation-results-2026-10-31.csv)
+
+AER content may be reused with attribution; commercial redistribution requires AER written permission.
 
 ## Data Quality Principles
 
@@ -343,19 +365,23 @@ The project follows these principles:
 - Some Production Pools map to many potential Geological Pools.
 - Some well records lack sufficient Field/Pool information.
 - AGS Atlas data covers only a subset of the infrastructure dataset.
-- Completion, perforation, and geological-top information is not yet integrated at scale.
-- AER Tableau extraction is not automated.
+- Completion, perforation, and geological-top information has been tested on a 10-well pilot only.
+- AER Tableau extraction is automated but slow (about 1 minute per well).
+- Geological tops are missing for some wells; depth reference (MD/TVD) is not yet verified.
+- Pools in the same formation (for example Bow Island A–D) cannot be separated by depth alone.
 - The well matching view has not yet been revalidated for January–September 2026.
 - Detailed artificial-lift, injection, and working-interest information is not yet comprehensively modeled.
 
 ## Next Steps
 
-1. **AER Tableau and Python:** Investigate authorized APIs, downloadable datasets, or other permitted methods to obtain well-level information at scale. Start with a small pilot.
-2. **Reservoir identification:** Combine ST103 candidate Geological Pools with licence, completion, geological, and production evidence.
-3. **AGS Atlas integration:** Improve identifier matching and evaluate the practical coverage of geological datasets.
-4. **Production validation:** Revalidate downstream well-matching views after the September 2026 load.
-5. **Power BI:** Develop validated production analytics and dashboards.
-6. **Future monthly updates:** Continue importing and validating Petrinex production data.
+1. **Formation-to-pool lookup:** review and extend the keyword table.
+2. **Larger test:** run extraction and matching on about 100 wells across the main ambiguous pools, including MFP9501.
+3. **Spatial method:** resolve formation-only cases (pool letter by location).
+4. **SQL design:** propose well-to-Geological-Pool and well-to-Formation result tables (many-to-many, with evidence and confidence). To be approved before creation.
+5. **Depth reference:** check MD vs TVD, especially for horizontal wells.
+6. **Production validation:** revalidate downstream well-matching views after the September 2026 load.
+7. **Power BI:** develop validated production analytics and dashboards.
+8. **Future monthly updates:** continue importing and validating Petrinex production data.
 
 ## Planned Analysis
 
@@ -380,9 +406,15 @@ Alberta-Production-Data-Project/
 │   ├── st103-geological-pool-mapping.md
 │   ├── aer-ags-five-table-load-and-matching.md
 │   ├── aer-general-well-data-sample-investigation.md
-│   └── aer-formation-matching-python-validation.md
+│   ├── aer-formation-matching-python-validation.md
+│   ├── aer-tableau-pilot-reservoir-formation-identification.md
+│   └── pilot-reservoir-formation-results-2026-10-31.csv
 ├── python/
-│   └── aer_match_formations.py
+│   ├── aer_match_formations.py
+│   ├── aer_well_extract_v2.py
+│   └── aer_reservoir_formation_match_v1.py
+├── reference/
+│   └── formation_to_pool_keywords_v1.csv
 └── sql/
     ├── README.md
     ├── 01_create_clean_volumetrics_table.sql
@@ -391,10 +423,11 @@ Alberta-Production-Data-Project/
     ├── 12_validate_st103_geological_pool_mapping.sql
     ├── 13_create_aer_ags_reference_tables.sql
     ├── 14_import_aer_ags_reference_data.sql
-    └── 15_load_september_2026_volumetrics.sql
+    ├── 15_load_september_2026_volumetrics.sql
+    └── 16_select_pilot_wells_and_st103_candidates.sql
 ```
 
-The original AER/Petrinex and AGS source datasets are not stored in this GitHub repository. The Python prototype uses sample-derived data and does not modify the working SQL Server database.
+The original AER/Petrinex and AGS source datasets are not stored in this GitHub repository. The Python scripts write CSV files only and do not modify the working SQL Server database.
 
 ## Author
 
