@@ -1,229 +1,376 @@
 # Alberta Production Data Project
 
-A SQL Server data engineering and analytics portfolio project using Alberta Petrinex data to integrate monthly volumetric records with well infrastructure information.
+A SQL Server data engineering and analytics portfolio project using Alberta Petrinex production data, well infrastructure information, and AER/AGS geological reference datasets.
+
+**Last updated:** October 31, 2026
 
 ## Project Goal
 
 The goal is to build a reliable database that can be used to analyze Alberta oil and gas production by:
 
-* Well
-* Production month
-* Product type
-* Operator
-* Reporting facility
-* Field and geographical area
-* Pool or deposit
-* Recovery mechanism
-* Well configuration
+- Well
+- Production month
+- Product type
+- Operator
+- Reporting facility
+- Field and geographical area
+- Production Pool and Geological Pool (Reservoir)
+- Geological formation
+- Completion and perforation intervals
+- Recovery mechanism
+- Well configuration
 
-The final database will support SQL analysis and Power BI reporting. Additional geological and operational datasets may later be added for formation, reservoir, completion, artificial-lift, injection, and ownership analysis.
+A major ongoing objective is to identify the **actual producing Geological Pool or Reservoir associated with each well**, distinguishing confirmed production evidence from potential geological associations.
+
+The database is intended to support SQL analysis, Python-based data integration, and Power BI reporting.
 
 ## Data Sources
 
 The project currently uses:
 
-* Petrinex monthly volumetric CSV files
-* Alberta Well Infrastructure CSV file
-* AER ST103 Field/Production Pool/Geological Pool reference data (`FieldPoolList.xlsx`)
+1. **Petrinex** — Alberta monthly conventional volumetric CSV files.
+2. **Alberta Well Infrastructure** — Well identification, location, licence, and operational information.
+3. **AER ST103** — Field, Production Pool, and Geological Pool reference relationships (`FieldPoolList.xlsx`).
+4. **Alberta Geological Survey (AGS)** — Atlas Structure Tops, Upper Isopachs, and Lower Isopachs.
+5. **AER DE/SD Commingling List** — Well and production-string commingling information.
 
-The raw CSV files are not stored in this repository because of their size. This repository will contain the SQL scripts, documentation, validation queries, and reporting materials used in the project.
+AER General Well Data is also being investigated as a source for licence details, production strings, completion/perforation records, and geological information.
+
+The raw source files are not stored in this repository because of their size and source-management requirements. This repository contains SQL scripts, Python code, documentation, and validation methods.
 
 ## Technology
 
-* Microsoft SQL Server
-* SQL Server Management Studio
-* T-SQL
-* Python (AER sample parsing and candidate formation matching)
-* Power BI
-* GitHub
+- Microsoft SQL Server
+- SQL Server Management Studio (SSMS)
+- T-SQL
+- Python
+- Power BI
+- GitHub
 
 ## Database
 
-Database name:
-
-`AlbertaProductionDB`
+**Database name:** `AlbertaProductionDB`
 
 ## Current Database Objects
 
-### Clean Volumetrics Table
+### 1. Clean Volumetrics
 
-`dbo.Clean_Volumetrics`
+**Table:** `dbo.Clean_Volumetrics`
 
 This table contains cleaned and typed monthly volumetric records.
 
-Current status:
+**Current status:**
 
-* **4,299,630 rows** (verified October 2, 2026)
-* **January through August 2026**
-* Numeric values converted to appropriate numeric data types
-* Production month converted to a date data type
-* Duplicate-month checks used before inserting new data
+- **4,828,929 records**
+- **January–September 2026**
+- Nine production months
+- Production month converted to SQL `date`
+- Numeric values converted to appropriate numeric types
+- Duplicate-month checks applied before inserting monthly data
 
-Examples of available information include:
+Monthly CSV files are imported into `dbo.Source_Volumetrics_v2` before being transferred to `dbo.Clean_Volumetrics`.
 
-* Production month
-* Operator
-* Reporting facility
-* Activity type
-* Product
-* Volume
-* Energy
-* Hours
-* From and To facility identifiers
+The latest completed load was **September 2026**, validated on October 31, 2026.
 
-The [monthly volumetrics load log](docs/monthly-volumetrics-load-log.md) records verified monthly counts, import history, and known gaps in the original execution records.
+| Metric | September 2026 |
+| --- | ---: |
+| Rows imported through SSIS | 529,300 |
+| Blank rows removed | 1 |
+| Valid source rows | 529,299 |
+| Clean rows inserted | 529,299 |
+| Total Clean rows after September | 4,828,929 |
 
-### Well Infrastructure Staging Table
+September validation included:
 
-`dbo.Staging_Well_Infrastructure`
+- Source/Clean row-count reconciliation
+- Oil, gas, and water volume comparisons
+- Blank and `***` handling
+- Numeric and date conversion checks
+- Decimal precision checks
+- Two-way comparison of all 30 columns using SQL `EXCEPT`
 
-This table was used to import the original well-infrastructure CSV data as text before conversion and validation.
+All completed checks passed. Duplicate-row multiplicities were not independently verified.
 
-### Well Infrastructure Table
+**Documentation:**
 
-`dbo.Source_Well_Infrastructure`
+- [Monthly volumetrics load log](docs/monthly-volumetrics-load-log.md)
+- [September 2026 load script](sql/15_load_september_2026_volumetrics.sql)
 
-This table contains cleaned and typed well-infrastructure information.
+### 2. Well Infrastructure Staging
 
-Current status:
+**Table:** `dbo.Staging_Well_Infrastructure`
 
-* 678,922 rows
-* 72 columns
+This table was used to import the original well-infrastructure data as text before conversion and validation.
 
-Examples of available information include:
+### 3. Well Infrastructure
 
-* Current well ID
-* Previous well ID
-* Well name
-* Licence number
-* Licensee name
-* Linked facility
-* Field
-* Area
-* Pool or deposit
-* Well status
-* Spud date
-* Finished drilling date
-* Final total depth
-* Maximum true vertical depth
-* Horizontal-drill indicator
-* Recovery mechanism
-* Licence status
-* Orphan-well indicator
+**Table:** `dbo.Source_Well_Infrastructure`
 
-## Data Quality Work
+Previously validated status:
 
-The following validation work has been completed:
+- 678,922 rows
+- 72 columns
+- 665,307 distinct Well IDs
 
-* Checked numeric columns before conversion
-* Checked date columns before conversion
-* Checked required fields for missing values
-* Allowed `Spud_Date` to contain null values because some source records do not provide a spud date
-* Investigated duplicate well IDs
-* Investigated suspicious date values
-* Reviewed records where maximum true vertical depth exceeded final total depth
-* Checked monthly volumetric data before inserting additional months
+Available attributes include:
 
-No source values were automatically deleted simply because they appeared unusual. Suspicious values were investigated before deciding how they should be handled.
+- Current and previous Well IDs
+- Well name
+- Licence number
+- Licensee
+- Field and area
+- Pool or deposit
+- Well status
+- Spud and drilling dates
+- Final total depth
+- Maximum true vertical depth
+- Horizontal-drill indicator
+- Recovery mechanism
+- Licence status
+- Orphan-well indicator
 
-## Well ID Matching
+### 4. Well ID Matching
 
-Volumetric records use well identifiers that may represent either a current well ID or a previous well ID.
+**View:** `dbo.vw_Volumetrics_With_Current_Well_ID`
 
-To support analysis, the following view was created:
+This view:
 
-`dbo.vw_Volumetrics_With_Current_Well_ID`
+- Preserves the original volumetric records
+- Matches current Well IDs where possible
+- Uses previous Well IDs when a unique relationship is available
+- Provides a standardized current Well ID
+- Identifies how each record was matched
 
-The view:
+The October 2, 2026 validation confirmed:
 
-* Preserves the original volumetric records
-* Matches the volumetric well ID directly to the current well ID when possible
-* Uses the previous well ID when a unique current-ID match is available
-* Adds a standardized current well ID
-* Identifies the method used for each match
-
-The October 2, 2026 validation confirmed that the matching view preserved the overall source row count:
-
-| Object | Row Count |
+| Object | Rows |
 | --- | ---: |
 | `dbo.Clean_Volumetrics` | 4,299,630 |
 | `dbo.vw_Volumetrics_With_Current_Well_ID` | 4,299,630 |
 | Difference | 0 |
 
-Well-ID matching is not guaranteed for every record. Some rows are not well-level reporting records, while other well-related rows require further matching checks. The older July-only matching breakdown has been removed because it did not describe the current January–August dataset.
+These results cover January–August 2026.
 
-### AER ST103 Geological Pool Reference
+**Pending:** Revalidate the matching view after adding September 2026.
 
-`dbo.Ref_FieldPool_ST103` was created and populated using the updated AER ST103 `FieldPoolList.xlsx` reference data. The SQL Server Import and Export Wizard transferred **68,515 data rows** on October 18, 2026.
+Well-ID matching is not guaranteed for every record. Some volumetric records describe facilities rather than individual wells, and some well-event relationships require additional investigation.
 
-Validation confirmed 899 distinct Field Codes and 12,057 distinct nonblank Geological Pool Codes. The reference contains **55,288 Field + Production Pool combinations**, of which 49,845 map to one Geological Pool, 4,458 map to multiple Geological Pools, and 985 have no Geological Pool Code.
+### 5. AER ST103 Geological Pool Reference
 
-Mapping this reference to the **665,307 distinct Well IDs** in the infrastructure data produced:
+**Table:** `dbo.Ref_FieldPool_ST103`
 
-| Well-level reference mapping result | Wells |
+The AER ST103 `FieldPoolList.xlsx` reference was imported on October 18, 2026.
+
+**Imported rows:** 68,515
+
+Previously validated reference statistics:
+
+- 899 distinct Field Codes
+- 12,057 distinct nonblank Geological Pool Codes
+- 55,288 Field + Production Pool combinations
+- 49,845 combinations with one Geological Pool
+- 4,458 combinations with multiple Geological Pools
+- 985 combinations without a Geological Pool Code
+
+The initial mapping against 665,307 distinct Well IDs produced:
+
+| Geological Pool Mapping Result | Wells |
 | --- | ---: |
-| Unique Geological Pool Code | 138,512 |
-| Multiple candidate Geological Pools | 192,909 |
+| Unique Geological Pool candidate | 138,512 |
+| Multiple Geological Pool candidates | 192,909 |
 | Missing Field or Production Pool | 322,694 |
-| Matched ST103 combination without a Geological Pool Code | 8,222 |
+| ST103 match without Geological Pool Code | 8,222 |
 | No matching ST103 combination | 2,970 |
 | **Total** | **665,307** |
 
-Of the 192,909 wells with ambiguous reference mappings, **80,266** had corresponding January–August 2026 production records in `dbo.vw_Well_Production_Records`. The largest commingled reporting group, `COMMINGLED MFP9501`, accounted for **51,326** of these wells.
+Of the 192,909 wells with ambiguous reference mappings, 80,266 had January–August production records in `dbo.vw_Well_Production_Records`.
 
-**Interpretation limit:** A unique ST103 reference mapping does not independently confirm a well's actual producing or injecting reservoir. Multiple candidate Geological Pools must not be treated as multiple confirmed producing pools, and joining them directly to production records would risk duplicating volumes.
+The largest commingled reporting group, `COMMINGLED MFP9501`, accounted for 51,326 of these wells.
 
-Read more:
+**Important interpretation limitation:**
+
+A unique ST103 reference mapping does not independently establish the well's actual producing reservoir.
+
+Likewise, multiple Geological Pool candidates must not be treated as confirmed simultaneous production from multiple reservoirs.
+
+Directly joining multiple candidates to production rows could duplicate reported volumes.
+
+**Related documentation:**
+
 - [ST103 geological pool mapping findings](docs/st103-geological-pool-mapping.md)
 - [Create ST103 reference table](sql/11_create_ref_fieldpool_st103.sql)
 - [ST103 validation SQL](sql/12_validate_st103_geological_pool_mapping.sql)
-- [AER General Well Data sample investigation and MD/TVD findings](docs/aer-general-well-data-sample-investigation.md)
-- [AER Python formation-matching validation](docs/aer-formation-matching-python-validation.md)
-- [Python matching script](python/aer_match_formations.py)
 
-## Important Data Findings
+### 6. AER/AGS Geological Reference Tables
 
-* A well ID is not always unique within the well-infrastructure data.
-* Some physical wells have multiple well-event identifiers.
-* A previous well ID may sometimes relate to more than one current well-event ID.
-* Production records must therefore be matched carefully rather than joined blindly.
-* Production activities can be reported from a well to a battery or injection facility.
-* Missing values are not automatically data errors; their meaning depends on the activity and product type.
+Five additional tables were created and populated in October 2026.
+
+| Table | Rows |
+| --- | ---: |
+| `dbo.AGS_Atlas_Upper_Isopachs` | 14,628 |
+| `dbo.AGS_Atlas_Lower_Isopachs` | 9,970 |
+| `dbo.AGS_Atlas_Structure_Tops` | 16,086 |
+| `dbo.AGS_Atlas_Data_Dictionary` | 98 |
+| `dbo.AER_SDDE_Commingling` | 14,832 |
+| **Total** | **55,614** |
+
+The original AGS datasets were:
+
+- `RISO1.hxd` — Upper Isopachs
+- `RISO2.hxd` — Lower Isopachs
+- `RSTRC.hxd` — Structure Tops
+
+These files were prepared as SQL-compatible CSV datasets before import.
+
+Two additional views were created:
+
+- `dbo.vw_Well_Infrastructure_SortUWI`
+- `dbo.vw_AGS_Atlas_Well_Keys`
+
+#### Commingling Identifier Matching
+
+A trailing `CHAR(13)` character was discovered in the `Sort_UWI` column following CSV import.
+
+After removing the character:
+
+| Result | Records |
+| --- | ---: |
+| Total Commingling records | 14,832 |
+| Matched to well infrastructure | 14,831 |
+| Unmatched | 1 |
+
+**Matching rate:** approximately 99.993%.
+
+The one unmatched identifier was:
+
+`0575223406020` — SUNDANCE, DE2
+
+Other well events were found at the same general location, but no exact match was confirmed. The record remains unmatched.
+
+#### AGS Atlas Identifier Matching
+
+The first matching test used 13-digit `Sort_UWI` identifiers.
+
+For Upper Isopachs:
+
+| Result | Records |
+| --- | ---: |
+| Total rows | 14,628 |
+| Matched rows | 9,733 |
+| Not matched by this method | 4,895 |
+
+Alternative identifier formats and the matching results for the remaining Atlas datasets require further investigation.
+
+**Related files:**
+
+- [Create AER/AGS reference tables and views](sql/13_create_aer_ags_reference_tables.sql)
+- [Import, cleanup and validation SQL](sql/14_import_aer_ags_reference_data.sql)
+- [AER/AGS loading and matching findings](docs/aer-ags-five-table-load-and-matching.md)
+
+## AER General Well Data Investigation
+
+The AER General Well Data Tableau report was used to investigate selected wells.
+
+[Open AER General Well Identifier Search](https://www2.aer.ca/t/Production/views/PRD_0100_General_Well_Identifier_Search/WellIdentifierSearch)
+
+The report supports investigation of:
+
+- Well identifiers and licence information
+- Licence purpose and target formation
+- Production Strings
+- Production Pools
+- Completion and perforation/treatment information
+- Available geological information
+
+### Representative Commingled Well
+
+**Licence Number:** `0524255`
+
+**Field:** PROGRESS
+
+**Production Pool:** `0800860` — COMMINGLED POOL 008
+
+The ST103 reference identifies two Geological Pool candidates:
+
+| Geological Pool | Code |
+| --- | --- |
+| CHARLIE LAKE AA | 0508027 |
+| HALFWAY B | 0516002 |
+
+The licence purpose references production from **Charlie Lake Formation**.
+
+The General Well Data investigation also identified completion and treatment information, but the Geological Tops & Markers section was empty.
+
+The available evidence supports Charlie Lake as a candidate target formation. However, the actual producing Geological Pool or Pools remain unconfirmed.
+
+## Python Geological Investigation
+
+An initial Python workflow was developed to parse AER General Well Data sample records and investigate potential overlaps between geological formation markers and completion/perforation intervals.
+
+**Existing script:**
+
+- [aer_match_formations.py](python/aer_match_formations.py)
+
+**Technical documentation:**
+
+- [AER General Well Data sample investigation](docs/aer-general-well-data-sample-investigation.md)
+- [Python formation-matching validation](docs/aer-formation-matching-python-validation.md)
+
+The current approach is preliminary.
+
+It does not independently establish confirmed producing formations, and the depth datum and MD/TVD compatibility require careful validation.
+
+A future priority is to determine whether AER General Well Data can be obtained through an authorized programmatic or bulk-data method instead of manually downloading individual well reports.
+
+## Data Quality Principles
+
+The project follows these principles:
+
+- Preserve original source information.
+- Maintain typed, validated analytical tables.
+- Prevent duplicate monthly data loads.
+- Verify row counts and numerical transformations.
+- Investigate anomalous records rather than deleting them automatically.
+- Preserve leading zeros in field, pool, and well identifiers.
+- Distinguish physical wells, well events, and production strings.
+- Treat Geological Pool mappings as candidates until supported by well-specific evidence.
+- Preserve reported production volumes when joining geological data.
+- Document assumptions, uncertainty, and source provenance.
 
 ## Current Limitations
 
-- ST103 provides *reference associations*, not confirmed well-level producing or injecting formations.
-- Commingled reporting pools may have many candidate Geological Pools; the original production-record grain and reported volumes must be preserved.
-- Many wells lack a Field or Production Pool Code needed for the current mapping.
-- Completion and perforation intervals, geological tops, and formation assignments are not yet integrated at scale.
-- AER General Well Data and IGDS have been identified as potential additional sources, but their well-level coverage and suitability are not yet validated.
-- Hydraulic-fracturing details, artificial-lift method, detailed injection history, and working-interest data are not yet comprehensively modeled.
+- Many wells do not have a confirmed producing Geological Pool assignment.
+- Some Production Pools map to many potential Geological Pools.
+- Some well records lack sufficient Field/Pool information.
+- AGS Atlas data covers only a subset of the infrastructure dataset.
+- Completion, perforation, and geological-top information is not yet integrated at scale.
+- AER Tableau extraction is not automated.
+- The well matching view has not yet been revalidated for January–September 2026.
+- Detailed artificial-lift, injection, and working-interest information is not yet comprehensively modeled.
 
 ## Next Steps
 
-1. Review the free AER General Well Data samples and record layouts before acquiring bulk files.
-2. Assess programmatic matching of well identifiers and alignment of geological tops with completion and perforation intervals.
-3. Test formation and reservoir identification on representative wells, including commingled cases, with provenance and uncertainty recorded.
-4. Investigate injection wells separately and preserve source reporting volumes throughout any future geological joins.
-5. Maintain reusable SQL validation queries and monthly data-loading documentation.
-6. Build tested production analytics views and a Power BI reporting model.
+1. **AER Tableau and Python:** Investigate authorized APIs, downloadable datasets, or other permitted methods to obtain well-level information at scale. Start with a small pilot.
+2. **Reservoir identification:** Combine ST103 candidate Geological Pools with licence, completion, geological, and production evidence.
+3. **AGS Atlas integration:** Improve identifier matching and evaluate the practical coverage of geological datasets.
+4. **Production validation:** Revalidate downstream well-matching views after the September 2026 load.
+5. **Power BI:** Develop validated production analytics and dashboards.
+6. **Future monthly updates:** Continue importing and validating Petrinex production data.
 
 ## Planned Analysis
 
-The completed model should support questions such as:
+The final analytical model should support questions such as:
 
-* How much oil, gas, and water did each well produce by month?
-* Which operator is responsible for each well?
-* Which field, area, pool, reservoir, or formation is associated with production?
-* Which wells are horizontal?
-* What recovery mechanism is recorded for each well?
-* What are the production and water-cut trends?
-* Which wells or operators contribute the largest share of production?
-* How does production vary by geography, facility, field, and pool?
+- How much oil, gas, and water does each well produce by month?
+- Which operators are responsible for specific wells?
+- Which Field and Production Pool are associated with reported volumes?
+- Which Geological Pool or Reservoir is supported by well-specific evidence?
+- Which wells are horizontal?
+- How do production rates and water cuts evolve?
+- Which wells or operators contribute the largest share of production?
+- How do production characteristics vary by location, formation, and reservoir?
 
 ## Repository Structure
-
-The repository includes SQL scripts, technical findings, and a reproducible Python sample-matching prototype:
 
 ```text
 Alberta-Production-Data-Project/
@@ -231,6 +378,7 @@ Alberta-Production-Data-Project/
 ├── docs/
 │   ├── monthly-volumetrics-load-log.md
 │   ├── st103-geological-pool-mapping.md
+│   ├── aer-ags-five-table-load-and-matching.md
 │   ├── aer-general-well-data-sample-investigation.md
 │   └── aer-formation-matching-python-validation.md
 ├── python/
@@ -238,14 +386,17 @@ Alberta-Production-Data-Project/
 └── sql/
     ├── README.md
     ├── 01_create_clean_volumetrics_table.sql
-    ├── ... (other existing scripts, 02 through 10)
+    ├── ... existing SQL files 02 through 10
     ├── 11_create_ref_fieldpool_st103.sql
-    └── 12_validate_st103_geological_pool_mapping.sql
+    ├── 12_validate_st103_geological_pool_mapping.sql
+    ├── 13_create_aer_ags_reference_tables.sql
+    ├── 14_import_aer_ags_reference_data.sql
+    └── 15_load_september_2026_volumetrics.sql
 ```
 
-The source AER/Petrinex files and derived sample CSV outputs are not stored in the repository. The Python prototype runs locally using AER sample-derived CSV inputs and does not alter the live SQL Server database. Its depth matching is preliminary: it does not verify the common depth datum or 2026 producing formations.
+The original AER/Petrinex and AGS source datasets are not stored in this GitHub repository. The Python prototype uses sample-derived data and does not modify the working SQL Server database.
 
 ## Author
 
-Ehsan Daneshgar
-Calgary, Alberta
+Ehsan Daneshgar  
+Calgary, Alberta, Canada
