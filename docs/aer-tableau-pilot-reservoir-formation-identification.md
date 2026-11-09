@@ -1,3 +1,5 @@
+> **SUPERSEDED (November 8, 2026).** This October 31 version used the labels STRONG / PROBABLE / FORMATION_ONLY and over-stated some results. See aer-tableau-pilot-reservoir-formation-identification_v4.md. Kept for history.
+
 # AER Tableau Pilot: Reservoir and Formation Identification
 
 **Project:** Alberta Oil & Gas Production Data Platform
