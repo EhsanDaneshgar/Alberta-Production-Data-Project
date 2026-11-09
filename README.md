@@ -2,7 +2,7 @@
 
 A SQL Server data engineering and analytics portfolio project using Alberta Petrinex production data, well infrastructure information, and AER/AGS geological reference datasets.
 
-**Last updated:** October 31, 2026
+**Last updated:** November 8, 2026
 
 ## Project Goal
 
@@ -318,31 +318,55 @@ An initial Python workflow was developed to parse AER General Well Data sample r
 
 ## AER Tableau Pilot: Reservoir and Formation Identification
 
-In October 2026 a pilot extracted well-level data from the free AER General Well Data Tableau reports and matched it to ST103 candidate Geological Pools.
+In October 2026 a pilot extracted well-level data from the free AER General Well Data Tableau reports and matched it to ST103 candidate Geological Pools. The method and labels were revised on November 8, 2026 (matcher v3).
 
 The per-well report sheets (production strings, completion intervals, perforations/treatments, geological tops, licence details, status history, plugbacks) are downloaded as CSV using Tableau's standard `.csv` view export. The reports are keyed by the wellbore UWI (event `/0`).
 
-**Method:** use the current production string's completion interval, find the formation tops it falls in (producing formation), then match those formations to ST103 candidate pool names (Geological Pool).
+**Method:** use the current production string's completion interval, place it between the formation tops of the well (geological group and unit), then judge each ST103 candidate pool one by one against that evidence.
 
-**Pilot results (10 conventional wells):**
+**Evidence labels:**
 
-- Producing formation identified for 10 of 10 wells.
-- Geological Pool narrowed to a specific pool for 8 of 10 wells (HERRONTON / MFP9501: 44 candidates → 1).
-- 2 wells remain formation-only, because their candidate pools are in the same formation and are separated by map area, not depth.
-- Licence purpose text was misleading for one well, so it is treated as weak evidence.
+| Label | Evidence |
+| --- | --- |
+| Confirmed | Not commingled; every interval is definitely inside the pool's unit (good tops above and below); the only possible candidate |
+| Probable | At least one interval is definitely inside the pool's unit and this pool is the only possible candidate for it |
+| Candidate | The well's tops do not exclude the pool, but do not prove it |
+| Not Supported | The well's own picked top excludes the pool for every interval. This does not mean the pool is impossible. |
+| Unresolved | Not enough evidence (no tops, interval outside the picked tops, or the pool is excluded only by stratigraphic order) |
 
-Results are evidence-based estimates with a confidence level (STRONG, PROBABLE, FORMATION_ONLY, UNRESOLVED), not AER-confirmed assignments. Depth reference compatibility (MD/TVD) is not yet verified.
+The goal is defensible assignments while preserving the ST103 mapping, not fewer Confirmed wells. The ST103 candidate list stays visible for every well; the labels are added on top. A high score never means Confirmed. A single ST103 candidate is not automatically Confirmed. Production volumes are never split or duplicated between pools.
+
+**Pilot results (10 conventional wells, matcher v3):**
+
+- Matcher v3 identified a Confirmed or Probable pool, or a leading candidate, for 6 of the 10 pilot wells. The other 4 wells have several equally possible candidates or no tops. All results remain subject to geological validation.
+- 63 candidate pools judged: 1 Confirmed, 2 Probable, 16 Candidate, 5 Not Supported, 39 Unresolved.
+- Geological group or formation placed for 9 of 10 wells. One well has no tops (Unresolved).
+- HERRONTON: 44 ST103 Geological Pool candidates were evaluated. MFP8506 BELLY RIVER is the leading candidate, pending further validation. 4 are Not Supported, 3 are Candidates and 37 remain Unresolved.
+
+**Main remaining uncertainties:** the tops datum (KB) is assumed and tops were verified as measured depth on 1 well only; the reference tables are drafts; the leading candidate depends on provisional scoring; pools in the same formation cannot be separated by depth; commingling orders are not yet used. Details are in the pilot documentation.
 
 **Scripts and files:**
 
 - [aer_well_extract_v2.py](python/aer_well_extract_v2.py): download AER report sheets for a list of wells
-- [aer_reservoir_formation_match_v1.py](python/aer_reservoir_formation_match_v1.py): estimate producing formation(s) and Geological Pool(s)
-- [formation_to_pool_keywords_v1.csv](reference/formation_to_pool_keywords_v1.csv): draft formation-to-pool-name lookup
+- [aer_reservoir_match_v3.py](python/aer_reservoir_match_v3.py): current matcher with the evidence labels
+- [aer_reservoir_formation_match_v1.py](python/aer_reservoir_formation_match_v1.py): old keyword matcher (superseded, kept for history)
+- [unit_families_v2.csv](reference/unit_families_v2.csv), [mfp_pool_units_v2.csv](reference/mfp_pool_units_v2.csv): draft depth-code ranges
+- [formation_codes_aer.csv](reference/formation_codes_aer.csv): AER formation code list
+- [formation_to_pool_keywords_v1.csv](reference/formation_to_pool_keywords_v1.csv): old keyword lookup (superseded)
 - [Pilot well selection SQL](sql/16_select_pilot_wells_and_st103_candidates.sql)
-- [Pilot documentation](docs/aer-tableau-pilot-reservoir-formation-identification.md)
-- [Pilot results CSV](docs/pilot-reservoir-formation-results-2026-10-31.csv)
+- [Pilot documentation (v4)](docs/aer-tableau-pilot-reservoir-formation-identification_v4.md)
+- [Pilot well summary (v3)](docs/pilot-well-summary-v3-2026-11-08.csv)
+- [Pilot pool candidates (v3)](docs/pilot-pool-candidates-v3-2026-11-08.csv)
+
+The October 31 documentation and results file are superseded and kept for history.
 
 AER content may be reused with attribution; commercial redistribution requires AER written permission.
+
+## Free Data Collection Scripts
+
+- [aer_st2_download_v1.py](python/aer_st2_download_v1.py) and [run_st2_weekly.bat](python/run_st2_weekly.bat): download the 15 free AER ST2 weekly files. AER keeps only the current week, so a weekly download builds a history.
+- [ab_energy_maps_export_v1.py](python/ab_energy_maps_export_v1.py): export public Alberta Energy Maps (GeoView) layers: wells, well paths, Crown PNG agreements and non-Crown mineral lands.
+- [17_database_metadata_queries.sql](sql/17_database_metadata_queries.sql): read-only query that describes the database tables, columns and views.
 
 ## Data Quality Principles
 
@@ -365,20 +389,22 @@ The project follows these principles:
 - Some Production Pools map to many potential Geological Pools.
 - Some well records lack sufficient Field/Pool information.
 - AGS Atlas data covers only a subset of the infrastructure dataset.
-- Completion, perforation, and geological-top information has been tested on a 10-well pilot only.
+- Completion, perforation, and geological-top information has been tested on a 10-well pilot only (matcher v3).
 - AER Tableau extraction is automated but slow (about 1 minute per well).
-- Geological tops are missing for some wells; depth reference (MD/TVD) is not yet verified.
+- Geological tops are missing for some wells. Perforation depths are verified as measured depth; the tops datum (KB) is assumed and tops were verified as measured depth on 1 well only.
+- The unit family and multi-field pool reference tables are drafts.
+- Commingling order evidence (MU and DE orders) is not yet used.
 - Pools in the same formation (for example Bow Island A–D) cannot be separated by depth alone.
 - The well matching view has not yet been revalidated for January–September 2026.
 - Detailed artificial-lift, injection, and working-interest information is not yet comprehensively modeled.
 
 ## Next Steps
 
-1. **Formation-to-pool lookup:** review and extend the keyword table.
+1. **Reference tables:** review the draft unit family and MFP tables.
 2. **Larger test:** run extraction and matching on about 100 wells across the main ambiguous pools, including MFP9501.
 3. **Spatial method:** resolve formation-only cases (pool letter by location).
 4. **SQL design:** propose well-to-Geological-Pool and well-to-Formation result tables (many-to-many, with evidence and confidence). To be approved before creation.
-5. **Depth reference:** check MD vs TVD, especially for horizontal wells.
+5. **Depth reference:** verify the tops datum and MD vs TVD on more wells, especially horizontal wells.
 6. **Production validation:** revalidate downstream well-matching views after the September 2026 load.
 7. **Power BI:** develop validated production analytics and dashboards.
 8. **Future monthly updates:** continue importing and validating Petrinex production data.
@@ -407,14 +433,24 @@ Alberta-Production-Data-Project/
 │   ├── aer-ags-five-table-load-and-matching.md
 │   ├── aer-general-well-data-sample-investigation.md
 │   ├── aer-formation-matching-python-validation.md
-│   ├── aer-tableau-pilot-reservoir-formation-identification.md
-│   └── pilot-reservoir-formation-results-2026-10-31.csv
+│   ├── aer-tableau-pilot-reservoir-formation-identification.md   (superseded)
+│   ├── aer-tableau-pilot-reservoir-formation-identification_v4.md
+│   ├── pilot-reservoir-formation-results-2026-10-31.csv   (superseded)
+│   ├── pilot-well-summary-v3-2026-11-08.csv
+│   └── pilot-pool-candidates-v3-2026-11-08.csv
 ├── python/
 │   ├── aer_match_formations.py
 │   ├── aer_well_extract_v2.py
-│   └── aer_reservoir_formation_match_v1.py
+│   ├── aer_reservoir_formation_match_v1.py   (superseded)
+│   ├── aer_reservoir_match_v3.py
+│   ├── aer_st2_download_v1.py
+│   ├── run_st2_weekly.bat
+│   └── ab_energy_maps_export_v1.py
 ├── reference/
-│   └── formation_to_pool_keywords_v1.csv
+│   ├── formation_to_pool_keywords_v1.csv   (superseded)
+│   ├── unit_families_v2.csv
+│   ├── mfp_pool_units_v2.csv
+│   └── formation_codes_aer.csv
 └── sql/
     ├── README.md
     ├── 01_create_clean_volumetrics_table.sql
@@ -424,7 +460,8 @@ Alberta-Production-Data-Project/
     ├── 13_create_aer_ags_reference_tables.sql
     ├── 14_import_aer_ags_reference_data.sql
     ├── 15_load_september_2026_volumetrics.sql
-    └── 16_select_pilot_wells_and_st103_candidates.sql
+    ├── 16_select_pilot_wells_and_st103_candidates.sql
+    └── 17_database_metadata_queries.sql
 ```
 
 The original AER/Petrinex and AGS source datasets are not stored in this GitHub repository. The Python scripts write CSV files only and do not modify the working SQL Server database.
