@@ -20,12 +20,12 @@ To judge each ST103 candidate pool of a well (see the pilot documentation, secti
 | AER ST103 (`FieldPoolList`) | Free | Candidate Geological Pools for a Field + Production Pool | The actual producing pool of a well | Imported (68,515 rows) |
 | AER General Well Data, Tableau reports | Free | Per-well production strings, perforations, tops, licence details | A bulk download. One well at a time. | 10 pilot wells downloaded |
 | AER ST2 weekly reports | Free | Weekly drilling data, perforation data for about 460 wells (1 week checked) | History. AER keeps only the current week. | Weekly download scheduled |
-| AER ST37 (monthly list of wells) | Free | Surface and bottom-hole location, KB, TD, max TVD, production string with Field / Pool / Deposit | Tops and perforations | Reviewed, not downloaded yet |
+| AER ST37 (monthly list of wells) | Free | Surface and bottom-hole location, KB, TD, max TVD, production string with Field / Pool / Deposit | Tops and perforations | Reviewed |
 | AER DE/SD commingling list | Free | Which wells have commingling approvals | The approved intervals inside the approval text | Imported (14,832 rows) |
 | AER MU orders (per-field PDFs) | Free | Commingling approval text by field | A downloadable index | Reviewed, not used yet |
 | AER pool order shapefile | Free | Pool boundaries for area-based pools | Depth information | Not used yet |
 | AGS Table of Formations (2019) | Free | Formation names and order | Well-specific data | Used to check the draft unit tables |
-| AGS Atlas tables | Free | Isopachs and structure tops for a subset of wells | Coverage of all wells | Imported (3 tables) |
+| AGS Atlas tables | Free | Isopachs and structure tops for a subset of wells | Coverage of all wells | Imported (4 tables, including the data dictionary) |
 | Alberta Energy Maps (GeoView) | Free | Well points and well paths, Crown agreements, non-Crown mineral lands | Tops and perforations | 3 of 4 layers exported |
 | AER General Well Data bulk file | Paid | Bulk well data | | **Not purchased** |
 | Commercial well databases | Paid | Tops and perforations in bulk | | Access not confirmed |
@@ -41,7 +41,7 @@ To judge each ST103 candidate pool of a well (see the pilot documentation, secti
 ### AER ST2 weekly reports
 - 15 CSV files from the AER Tableau site. AER keeps only the current week.
 - The script `aer_st2_download_v1.py` saves them into a dated folder every Monday (Windows scheduled task). This builds our own history.
-- In the one week checked, about 460 wells had perforation data. If this holds, about 20,000 wells per year (derived estimate).
+- In the one week checked, about 460 wells had perforation data. If this held every week, it would be up to about 24,000 wells per year (460 x 52, derived estimate; weekly counts will vary).
 - ST2 does not replace the Tableau reports for wells already drilled.
 
 ### AER ST37
